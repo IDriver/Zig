@@ -21,9 +21,6 @@ pub const VTable = struct {
     send_cmd: *const fn (ctx: *anyopaque, cmdidx: u6, cmdarg: u32, resptype: fv.CmdRespType) void,
 
     /// Get last command response
-    /// The return value is an fixed-size-16B array and the both byte-order and bit-order of a byte should be LSB
-    /// array[0] bit position in whole response should be [0:7], array[1] will be [8:15] and so on,
-    /// the bit-order of array[x] should be like (array[0] & 0x1) representing whole-resp-bit[0]
     get_resp: *const fn (ctx: *anyopaque) fv.CmdResp,
 
     // /// Set bus mode (No Need Yet)
@@ -47,8 +44,6 @@ pub inline fn send_cmd(self: BHost, cmdidx: u6, cmdarg: u32, resptype: fv.CmdRes
 }
 
 /// Get last command response
-/// The return value is an fixed-size-16B array
-/// and the both byte-order and bit-order of a byte are LSB
 pub inline fn get_resp(self: BHost) fv.CmdResp {
     return self.vtable.get_resp(
         self.ptr,
