@@ -73,35 +73,70 @@ pub const CmdResp = struct {
     const Self = @This();
 
     /// Extract 32-bit data part from the response
-    pub inline fn val32bits(self: Self) u32 {
-        return (@as(u32, self.data[4]) << 24) |
-            (@as(u32, self.data[3]) << 16) |
-            (@as(u32, self.data[2]) << 8) |
-            self.data[1];
+    pub fn val32bits(self: *Self) u32 {
+        // Will get panic at runtime (arm) when using the following style. Why?
+        // return (@as(u32, self.data[4]) << 24) |
+        //     (@as(u32, self.data[3]) << 16) |
+        //     (@as(u32, self.data[2]) << 8) |
+        //     self.data[1];
+        var ret: u32 = 0;
+        ret = (@as(u32, self.data[4]) << 24);
+        ret |= (@as(u32, self.data[3]) << 16);
+        ret |= (@as(u32, self.data[2]) << 8);
+        ret |= (@as(u32, self.data[1]) << 0);
+        return ret;
     }
 
     /// Extract 128-bit data part from the response
-    pub inline fn val128bits(self: Self) u128 {
-        return (@as(u128, self.data[16]) << (15 * 8)) |
-            (@as(u128, self.data[15]) << (14 * 8)) |
-            (@as(u128, self.data[14]) << (13 * 8)) |
-            (@as(u128, self.data[13]) << (12 * 8)) |
-            (@as(u128, self.data[12]) << (11 * 8)) |
-            (@as(u128, self.data[11]) << (10 * 8)) |
-            (@as(u128, self.data[10]) << (9 * 8)) |
-            (@as(u128, self.data[9]) << (8 * 8)) |
-            (@as(u128, self.data[8]) << (7 * 8)) |
-            (@as(u128, self.data[7]) << (6 * 8)) |
-            (@as(u128, self.data[6]) << (5 * 8)) |
-            (@as(u128, self.data[5]) << (4 * 8)) |
-            (@as(u128, self.data[4]) << (3 * 8)) |
-            (@as(u128, self.data[3]) << (2 * 8)) |
-            (@as(u128, self.data[2]) << (1 * 8)) |
-            (@as(u128, self.data[1]) << (0 * 8));
+    pub fn val128bits(self: *Self) u128 {
+        // note: the same questions with val32bits
+        var ret: u128 = 0;
+        ret = (@as(u128, self.data[16]) << (15 * 8));
+        ret |= (@as(u128, self.data[15]) << (14 * 8));
+        ret |= (@as(u128, self.data[14]) << (13 * 8));
+        ret |= (@as(u128, self.data[13]) << (12 * 8));
+        ret |= (@as(u128, self.data[12]) << (11 * 8));
+        ret |= (@as(u128, self.data[11]) << (10 * 8));
+        ret |= (@as(u128, self.data[10]) << (9 * 8));
+        ret |= (@as(u128, self.data[9]) << (8 * 8));
+        ret |= (@as(u128, self.data[8]) << (7 * 8));
+        ret |= (@as(u128, self.data[7]) << (6 * 8));
+        ret |= (@as(u128, self.data[6]) << (5 * 8));
+        ret |= (@as(u128, self.data[5]) << (4 * 8));
+        ret |= (@as(u128, self.data[4]) << (3 * 8));
+        ret |= (@as(u128, self.data[3]) << (2 * 8));
+        ret |= (@as(u128, self.data[2]) << (1 * 8));
+        ret |= (@as(u128, self.data[1]) << (0 * 8));
+
+        return ret;
     }
 
-    pub fn isBusyOCR(self: Self) bool {
+    pub fn isBusyOCR(self: *Self) bool {
         return (self.val32bits() & @as(u32, 1 << 31)) == 0;
+    }
+
+    fn _u32_to_array_u8(src: u32) [4]u8 {
+        var ret = [4]u8{
+            @as(u8, @truncate(src & 0xff)),
+            @as(u8, @truncate((src >> 8) & 0xff)),
+            @as(u8, @truncate((src >> 16) & 0xff)),
+            @as(u8, @truncate((src >> 24) & 0xff)),
+        };
+
+        return ret;
+    }
+
+    /// set data only
+    /// used by lower-level
+    pub fn setDataByArrayU32(self: *Self, src: [4]u32) void {
+        var idx: u8 = 1;
+        for (src) |v| {
+            var arr = _u32_to_array_u8(v);
+            for (arr) |byte| {
+                self.data[idx] = byte;
+                idx += 1;
+            }
+        }
     }
 };
 
@@ -172,4 +207,18 @@ test "CmdResp" {
 
     resp.data[4] = 0x80;
     try std.testing.expect(resp.isBusyOCR() == false);
+
+    // val
+
+    _ = resp.val32bits();
+
+    // ---
+    resp.setDataByArrayU32([4]u32{ 0x05010203, 6, 7, 8 });
+
+    try std.testing.expect(resp.data[1] == 0x3);
+    try std.testing.expect(resp.data[2] == 0x2);
+    try std.testing.expect(resp.data[3] == 0x1);
+    try std.testing.expect(resp.data[4] == 0x5);
+
+    // std.debug.print("val {any}\r\n", .{resp.data});
 }

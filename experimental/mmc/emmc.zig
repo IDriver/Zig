@@ -36,15 +36,28 @@ inline fn _stage_go_idle_state(host: BHost) void {
     host.send_cmd_vlp(fv.CMD0, 0);
 }
 
+// temporary solution
+fn mmc_delay(cnt: u32) void {
+    var i: u32 = 0;
+
+    while (i < cnt) {
+        i += 1;
+    }
+}
+
+// TODO: improve timeout solution
 inline fn _stage_do_voltage_identification(host: BHost, ocr: u32) anyerror!u32 {
     // The number is arbitrary
-    var tryMax: u8 = 16;
+    var tryMax: u32 = 0xFFFF;
 
     // poll until non-busy or timeout with error
-
     while (true) {
         // (CMD1 with argument OCR)
         host.send_cmd_vlp(fv.CMD1, ocr);
+
+        // wait for response ready
+        mmc_delay(1024);
+
         var resp = host.get_resp();
         if (!resp.isBusyOCR()) {
             return resp.val32bits();
@@ -60,7 +73,8 @@ inline fn _stage_do_voltage_identification(host: BHost, ocr: u32) anyerror!u32 {
 inline fn _stage_fetch_cid(host: BHost) u128 {
     // (CMD2)
     host.send_cmd_vlp(fv.CMD2, 0);
-    return host.get_resp().val128bits();
+    var resp = host.get_resp();
+    return resp.val128bits();
 }
 
 // Used for test only
